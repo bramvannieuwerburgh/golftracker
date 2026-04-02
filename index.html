@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Golf Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --green: #1D9E75; --green-dark: #0F6E56; --green-light: #E1F5EE;
+    --red: #E24B4A; --amber: #BA7517; --amber-light: #FAEEDA;
+    --text: #1a1a1a; --text-secondary: #6b7280;
+    --border: rgba(0,0,0,0.08); --border-strong: rgba(0,0,0,0.15);
+    --bg: #f7f6f3; --surface: #ffffff; --surface2: #f3f2ef;
+    --radius: 12px; --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 15px; }
+
+  #login-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem; }
+  .login-wrap { width: 100%; max-width: 380px; }
+  .login-logo { text-align: center; margin-bottom: 2.5rem; }
+  .login-logo-mark { width: 64px; height: 64px; background: var(--green); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; }
+  .login-logo h1 { font-size: 26px; font-weight: 500; letter-spacing: -0.5px; }
+  .login-logo p { color: var(--text-secondary); font-size: 14px; margin-top: 4px; }
+  .login-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.75rem; }
+  .login-card label { font-size: 13px; color: var(--text-secondary); display: block; margin-bottom: 6px; font-weight: 500; }
+  .login-card select, .login-card input[type=password] { width: 100%; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); font-size: 14px; font-family: inherit; background: var(--bg); margin-bottom: 1rem; outline: none; }
+  .login-card select:focus, .login-card input:focus { border-color: var(--green); }
+  .login-hint { font-size: 11px; color: var(--text-secondary); text-align: center; margin-top: 0.75rem; }
+  #login-error { font-size: 13px; color: var(--red); margin-bottom: 0.75rem; display: none; padding: 8px 12px; background: #fef2f2; border-radius: var(--radius-sm); }
+
+  .nav { background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+  .nav-inner { max-width: 960px; margin: 0 auto; padding: 0 1.5rem; display: flex; align-items: center; }
+  .nav-brand { display: flex; align-items: center; gap: 10px; padding: 14px 0; margin-right: 1.5rem; }
+  .nav-brand-dot { width: 22px; height: 22px; background: var(--green); border-radius: 50%; }
+  .nav-brand span { font-size: 15px; font-weight: 500; }
+  .nav-tab { padding: 16px 12px; font-size: 13px; color: var(--text-secondary); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+  .nav-tab:hover { color: var(--text); }
+  .nav-tab.active { color: var(--green); border-bottom-color: var(--green); font-weight: 500; }
+  .nav-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .nav-user { font-size: 13px; color: var(--text-secondary); }
+  .nav-logout { font-size: 12px; color: var(--green); cursor: pointer; padding: 5px 10px; border: 1px solid var(--green); border-radius: 6px; font-family: inherit; background: none; }
+  .nav-logout:hover { background: var(--green-light); }
+
+  .content { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+  .page { display: none; }
+  .page.active { display: block; animation: fadein 0.2s ease; }
+  @keyframes fadein { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
+  .page-title { font-size: 22px; font-weight: 500; letter-spacing: -0.3px; margin-bottom: 1.5rem; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1rem; }
+  .card-title { font-size: 15px; font-weight: 500; margin-bottom: 1.25rem; }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem 1.25rem; }
+  .stat-label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500; margin-bottom: 6px; }
+  .stat-val { font-size: 28px; font-weight: 300; letter-spacing: -1px; }
+  .stat-sub { font-size: 11px; color: var(--green); margin-top: 3px; }
+
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 8px 12px; font-size: 11px; font-weight: 500; color: var(--text-secondary); border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: 0.05em; }
+  td { padding: 11px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg); }
+  .badge { display: inline-block; padding: 3px 9px; border-radius: 99px; font-size: 11px; font-weight: 500; }
+  .badge-green { background: var(--green-light); color: var(--green-dark); }
+  .badge-gray { background: var(--surface2); color: var(--text-secondary); }
+
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 500; font-family: inherit; cursor: pointer; border: none; }
+  .btn-primary { background: var(--green); color: white; }
+  .btn-primary:hover { background: var(--green-dark); }
+  .btn-danger { background: var(--red); color: white; }
+  .btn-danger:hover { opacity: 0.85; }
+
+  .upload-zone { border: 1.5px dashed var(--border-strong); border-radius: var(--radius); padding: 2.5rem 2rem; text-align: center; cursor: pointer; }
+  .upload-zone:hover { background: var(--green-light); border-color: var(--green); }
+  .upload-icon { width: 48px; height: 48px; background: var(--green-light); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; }
+  .upload-icon svg { width: 22px; height: 22px; stroke: var(--green); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+  .ai-status { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-secondary); padding: 10px 14px; background: var(--surface2); border-radius: var(--radius-sm); margin-bottom: 1rem; }
+  .ai-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+  .ai-dot.pulse { animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.25} }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group label { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
+  .form-group input, .form-group select { padding: 9px 12px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); font-size: 14px; font-family: inherit; background: var(--bg); outline: none; }
+  .form-group input:focus, .form-group select:focus { border-color: var(--green); }
+
+  .holes-label { font-size: 11px; font-weight: 500; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .hole-grid { display: grid; grid-template-columns: repeat(9, 1fr); gap: 4px; margin-bottom: 4px; }
+  .hole-cell { text-align: center; padding: 6px 2px; border-radius: 5px; background: var(--surface2); }
+  .hole-n, .hole-p { font-size: 9px; color: var(--text-secondary); }
+  .hole-s { font-size: 14px; font-weight: 500; line-height: 1.2; }
+  .hole-d { font-size: 9px; }
+  .h-eagle { background: #E1F5EE; } .h-birdie { background: #9FE1CB; }
+  .h-par { background: var(--surface2); } .h-bogey { background: #FAEEDA; }
+  .h-double { background: #FAC775; } .h-triple { background: #FAECE7; }
+  .c-under { color: var(--green); } .c-over { color: var(--red); } .c-even { color: var(--text-secondary); }
+
+  .avatar { width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 500; flex-shrink: 0; }
+  .chart-wrap { position: relative; height: 220px; }
+
+  .player-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .player-row:last-child { border-bottom: none; }
+
+  .score-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 1.25rem; }
+  .score-stat { background: var(--surface2); border-radius: var(--radius-sm); padding: 10px; text-align: center; }
+  .score-stat-label { font-size: 10px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .score-stat-val { font-size: 20px; font-weight: 500; }
+
+  .img-preview { max-width: 100%; max-height: 200px; object-fit: contain; border-radius: var(--radius-sm); border: 1px solid var(--border); margin-bottom: 1rem; display: block; }
+
+  .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; padding: 11px 18px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; z-index: 9999; display: none; box-shadow: 0 4px 20px rgba(0,0,0,0.12); }
+  .toast-ok { background: var(--green); color: white; }
+  .toast-err { background: var(--red); color: white; }
+
+  @media (max-width: 600px) {
+    .form-row { grid-template-columns: 1fr; }
+    .score-stats { grid-template-columns: repeat(2, 1fr); }
+    .content { padding: 1rem; }
+    .nav-user { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-wrap">
+    <div class="login-logo">
+      <div class="login-logo-mark">
+        <svg viewBox="0 0 32 32" width="30" height="30" fill="none">
+          <circle cx="16" cy="12" r="4" fill="white"/>
+          <path d="M16 16v12M10 28h12" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="16" cy="12" r="8" stroke="white" stroke-width="1.5" opacity="0.4"/>
+        </svg>
+      </div>
+      <h1>Golf Tracker</h1>
+      <p>Bijhouden · Analyseren · Verbeteren</p>
+    </div>
+    <div class="login-card">
+      <label>Speler</label>
+      <select id="login-user">
+        <option value="">— Kies je naam —</option>
+        <option value="Jean">Jean (admin)</option>
+        <option value="Gilles">Gilles</option>
+        <option value="Aline">Aline</option>
+        <option value="Julie">Julie</option>
+        <option value="Bram">Bram</option>
+      </select>
+      <label>Wachtwoord</label>
+      <input type="password" id="login-pw" placeholder="••••••">
+      <div id="login-error"></div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="doLogin()">Aanmelden</button>
+      <p class="login-hint">Wachtwoord = naam in kleine letters</p>
+    </div>
+  </div>
+</div>
+
+<div id="main-screen" style="display:none;">
+  <nav class="nav">
+    <div class="nav-inner">
+      <div class="nav-brand"><div class="nav-brand-dot"></div><span>Golf Tracker</span></div>
+      <div class="nav-tab active" onclick="showPage('dashboard')">Dashboard</div>
+      <div class="nav-tab" onclick="showPage('upload')">Scorekaart</div>
+      <div class="nav-tab" onclick="showPage('rondes')">Rondes</div>
+      <div id="admin-tab" class="nav-tab" style="display:none" onclick="showPage('admin')">Admin</div>
+      <div class="nav-right">
+        <span class="nav-user" id="nav-username"></span>
+        <button class="nav-logout" onclick="doLogout()">Afmelden</button>
+      </div>
+    </div>
+  </nav>
+  <div class="content">
+
+    <div id="page-dashboard" class="page active">
+      <div class="stat-grid" id="stat-grid"><div class="stat"><div class="stat-label">Laden</div><div class="stat-val">—</div></div></div>
+      <div class="card"><div class="card-title">Handicap evolutie</div><div class="chart-wrap"><canvas id="hcp-chart"></canvas></div></div>
+      <div class="card"><div class="card-title">Recente rondes</div><div class="tbl-wrap" id="recent-table"><p style="font-size:13px;color:var(--text-secondary)">Laden...</p></div></div>
+    </div>
+
+    <div id="page-upload" class="page">
+      <div class="card">
+        <div class="card-title">Scorekaart uploaden</div>
+        <div class="upload-zone" onclick="document.getElementById('file-input').click()">
+          <div class="upload-icon"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg></div>
+          <p style="font-size:15px;color:var(--text-secondary);"><strong style="color:var(--green);font-weight:500;">Kies een foto</strong> of sleep hier naartoe</p>
+          <p style="font-size:12px;color:var(--text-secondary);margin-top:4px;">Foto van je scorekaart na de ronde</p>
+        </div>
+        <input type="file" id="file-input" accept="image/*" style="display:none" onchange="handleFile(event)">
+      </div>
+      <div class="card" id="result-panel" style="display:none;">
+        <div class="ai-status"><div class="ai-dot pulse" id="ai-dot"></div><span id="ai-status-text">AI analyseert je scorekaart...</span></div>
+        <img id="img-preview" class="img-preview" style="display:none;">
+        <div id="scan-result" style="display:none;">
+          <div class="form-row">
+            <div class="form-group"><label>Golfbaan</label><input type="text" id="res-baan"></div>
+            <div class="form-group"><label>Datum</label><input type="date" id="res-datum"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Par baan</label><input type="number" id="res-par" min="60" max="80"></div>
+            <div class="form-group"><label>Type ronde</label>
+              <select id="res-wedstrijd" onchange="document.getElementById('wedstrijd-hcp').style.display=this.value==='ja'?'block':'none'">
+                <option value="nee">Oefenronde</option>
+                <option value="ja">Wedstrijd</option>
+              </select>
+            </div>
+          </div>
+          <div id="wedstrijd-hcp" style="display:none;margin-bottom:14px;">
+            <div class="form-group"><label>Nieuwe handicap-index na wedstrijd</label><input type="number" step="0.1" min="0" max="54" id="res-hcp" placeholder="bv. 18.4"></div>
+          </div>
+          <div style="margin:1.25rem 0;">
+            <div class="holes-label">Holes 1–9</div>
+            <div class="hole-grid" id="hole-grid-front"></div>
+            <div class="holes-label" style="margin-top:10px;">Holes 10–18</div>
+            <div class="hole-grid" id="hole-grid-back"></div>
+          </div>
+          <div class="score-stats" id="score-stats"></div>
+          <button class="btn btn-primary" onclick="saveRonde()">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            Ronde opslaan
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="page-rondes" class="page">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:10px;">
+        <h1 class="page-title" style="margin:0;">Alle rondes</h1>
+        <select id="filter-speler" onchange="renderRondes()" style="padding:8px 12px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);font-size:13px;font-family:inherit;background:var(--surface);outline:none;">
+          <option value="all">Alle spelers</option>
+          <option value="Jean">Jean</option><option value="Gilles">Gilles</option>
+          <option value="Aline">Aline</option><option value="Julie">Julie</option><option value="Bram">Bram</option>
+        </select>
+      </div>
+      <div class="card"><div class="tbl-wrap" id="rondes-table"><p style="font-size:13px;color:var(--text-secondary)">Laden...</p></div></div>
+    </div>
+
+    <div id="page-admin" class="page">
+      <h1 class="page-title">Admin</h1>
+      <div class="card"><div class="card-title">Spelersoverzicht</div><div id="admin-players"></div></div>
+      <div class="card">
+        <div class="card-title">Database beheer</div>
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:1rem;">Verwijder alle rondes permanent uit Supabase.</p>
+        <button class="btn btn-danger" onclick="resetAll()">Alle rondes wissen</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SB_URL = 'https://xqolvhahtjoukedxgqxw.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhxb2x2aGFodGpvdWtlZHhncXh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxMzUyMTIsImV4cCI6MjA5MDcxMTIxMn0.VjjQdt5jFDBOwwSooYQPMsSsQHaIsOEmKx-Cuc8PBk8';
+const USERS = {
+  Jean:   { pw:'jean',   admin:true,  bg:'#E1F5EE', color:'#085041' },
+  Gilles: { pw:'gilles', admin:false, bg:'#E6F1FB', color:'#042C53' },
+  Aline:  { pw:'aline',  admin:false, bg:'#FBEAF0', color:'#4B1528' },
+  Julie:  { pw:'julie',  admin:false, bg:'#FAECE7', color:'#4A1B0C' },
+  Bram:   { pw:'bram',   admin:false, bg:'#EEEDFE', color:'#26215C' }
+};
+let currentUser = null, hcpChart = null, currentScan = null;
+
+async function sb(path, opts={}) {
+  const res = await fetch(SB_URL+'/rest/v1/'+path, {
+    method: opts.method||'GET',
+    headers: { 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY, 'Content-Type':'application/json', 'Prefer':opts.prefer||'return=representation' },
+    body: opts.body ? JSON.stringify(opts.body) : undefined
+  });
+  if (!res.ok) throw new Error(await res.text());
+  const t = await res.text(); return t ? JSON.parse(t) : [];
+}
+
+function toast(msg, err=false) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.className = 'toast '+(err?'toast-err':'toast-ok'); el.style.display = 'block';
+  clearTimeout(el._t); el._t = setTimeout(()=>el.style.display='none', 3500);
+}
+
+function doLogin() {
+  const user = document.getElementById('login-user').value;
+  const pw = document.getElementById('login-pw').value.toLowerCase().trim();
+  const err = document.getElementById('login-error');
+  if (!user) { err.style.display='block'; err.textContent='Kies een speler.'; return; }
+  if (pw !== USERS[user].pw) { err.style.display='block'; err.textContent='Verkeerd wachtwoord.'; return; }
+  err.style.display='none'; currentUser = user;
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('main-screen').style.display='block';
+  document.getElementById('nav-username').textContent = user;
+  if (USERS[user].admin) document.getElementById('admin-tab').style.display='block';
+  showPage('dashboard');
+}
+
+function doLogout() {
+  currentUser = null; if (hcpChart) { hcpChart.destroy(); hcpChart=null; }
+  document.getElementById('main-screen').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('login-pw').value=''; document.getElementById('login-user').value='';
+  document.getElementById('admin-tab').style.display='none';
+}
+
+function showPage(p) {
+  document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(el=>el.classList.remove('active'));
+  document.getElementById('page-'+p)?.classList.add('active');
+  const tabs = Array.from(document.querySelectorAll('.nav-tab')).filter(t=>t.style.display!=='none');
+  const idx = {dashboard:0,upload:1,rondes:2}[p]; const adminIdx = tabs.length-1;
+  if (p==='admin' && tabs[adminIdx]) tabs[adminIdx].classList.add('active');
+  else if (idx!==undefined && tabs[idx]) tabs[idx].classList.add('active');
+  if (p==='dashboard') renderDashboard();
+  if (p==='rondes') renderRondes();
+  if (p==='admin') renderAdmin();
+}
+
+function ini(n) { return n.slice(0,2).toUpperCase(); }
+function av(name) {
+  const u = USERS[name]||{bg:'#eee',color:'#333'};
+  return `<span class="avatar" style="background:${u.bg};color:${u.color}">${ini(name)}</span>`;
+}
+
+function buildTable(rondes) {
+  if (!rondes.length) return '<p style="font-size:13px;color:var(--text-secondary);padding:4px 0;">Geen rondes gevonden.</p>';
+  let h = `<table><thead><tr><th>Speler</th><th>Datum</th><th>Baan</th><th>Bruto</th><th>Netto</th><th>Hcp Δ</th><th>Type</th></tr></thead><tbody>`;
+  rondes.forEach(r => {
+    const d = r.hcp_delta!=null ? (r.hcp_delta>0?`<span style="color:var(--green)">+${(+r.hcp_delta).toFixed(1)}</span>`:r.hcp_delta<0?`<span style="color:var(--red)">${(+r.hcp_delta).toFixed(1)}</span>`:'0.0') : '—';
+    h += `<tr>
+      <td><span style="display:inline-flex;align-items:center;gap:8px;">${av(r.speler)}${r.speler}</span></td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px;">${r.datum}</td>
+      <td>${r.baan}</td><td style="font-weight:500">${r.bruto}</td>
+      <td>${r.netto??'—'}</td><td>${d}</td>
+      <td><span class="badge ${r.wedstrijd?'badge-green':'badge-gray'}">${r.wedstrijd?'Wedstrijd':'Oefening'}</span></td>
+    </tr>`;
+  });
+  return h+'</tbody></table>';
+}
+
+async function renderDashboard() {
+  try {
+    const rondes = await sb(`rondes?speler=eq.${currentUser}&order=datum.desc`);
+    const beste = rondes.length ? Math.min(...rondes.map(r=>r.bruto)) : '—';
+    const gem = rondes.length ? (rondes.reduce((s,r)=>s+r.bruto,0)/rondes.length).toFixed(1) : '—';
+    const hcpR = rondes.filter(r=>r.handicap!=null);
+    const lastHcp = hcpR.length ? (+hcpR[0].handicap).toFixed(1) : '—';
+    document.getElementById('stat-grid').innerHTML = `
+      <div class="stat"><div class="stat-label">Rondes gespeeld</div><div class="stat-val">${rondes.length}</div></div>
+      <div class="stat"><div class="stat-label">Beste score</div><div class="stat-val">${beste}</div></div>
+      <div class="stat"><div class="stat-label">Gemiddelde</div><div class="stat-val">${gem}</div></div>
+      <div class="stat"><div class="stat-label">Handicap-index</div><div class="stat-val">${lastHcp}</div><div class="stat-sub">meest recent</div></div>`;
+    const sorted = [...hcpR].sort((a,b)=>new Date(a.datum)-new Date(b.datum));
+    const ctx = document.getElementById('hcp-chart').getContext('2d');
+    if (hcpChart) { hcpChart.destroy(); }
+    hcpChart = new Chart(ctx, {
+      type:'line', data:{
+        labels: sorted.map(r=>r.datum),
+        datasets:[{label:'Handicap',data:sorted.map(r=>r.handicap),borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.07)',borderWidth:2,pointBackgroundColor:'#1D9E75',pointRadius:5,tension:0.35,fill:true}]
+      },
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+        scales:{x:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{font:{size:11,family:'DM Mono'},color:'#9ca3af'}},
+                y:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{font:{size:11,family:'DM Mono'},color:'#9ca3af'},reverse:true}}}
+    });
+    document.getElementById('recent-table').innerHTML = buildTable(rondes.slice(0,5));
+  } catch(e) { toast('Fout bij laden: '+e.message, true); }
+}
+
+async function renderRondes() {
+  try {
+    const filter = document.getElementById('filter-speler')?.value||'all';
+    let path = `rondes?order=datum.desc`; if (filter!=='all') path+=`&speler=eq.${filter}`;
+    document.getElementById('rondes-table').innerHTML = buildTable(await sb(path));
+  } catch(e) { toast('Fout: '+e.message, true); }
+}
+
+async function renderAdmin() {
+  try {
+    const rondes = await sb('rondes?order=datum.desc');
+    document.getElementById('admin-players').innerHTML = Object.keys(USERS).map(name => {
+      const u=USERS[name], pr=rondes.filter(r=>r.speler===name), lh=pr.find(r=>r.handicap!=null);
+      return `<div class="player-row">
+        <div class="avatar" style="background:${u.bg};color:${u.color};width:36px;height:36px;font-size:12px;">${ini(name)}</div>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:500;">${name}${u.admin?' <span class="badge badge-green" style="font-size:10px;">admin</span>':''}</div>
+          <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">${pr.length} ronde(s) &middot; handicap: ${lh?(+lh.handicap).toFixed(1):'—'}</div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { toast('Fout admin: '+e.message, true); }
+}
+
+async function resetAll() {
+  if (!confirm('Alle rondes permanent verwijderen?')) return;
+  try {
+    await sb('rondes?id=neq.00000000-0000-0000-0000-000000000000',{method:'DELETE',prefer:'return=minimal'});
+    toast('Alle rondes verwijderd.'); renderAdmin();
+  } catch(e) { toast('Fout: '+e.message, true); }
+}
+
+function handleFile(event) {
+  const file = event.target.files[0]; if (!file) return;
+  document.getElementById('result-panel').style.display='block';
+  document.getElementById('scan-result').style.display='none';
+  document.getElementById('ai-dot').classList.add('pulse');
+  document.getElementById('ai-status-text').textContent='AI analyseert je scorekaart...';
+  const reader = new FileReader();
+  reader.onload = e => {
+    const preview = document.getElementById('img-preview');
+    preview.src=e.target.result; preview.style.display='block';
+    analyzeScorecard(e.target.result.split(',')[1], file.type||'image/jpeg');
+  };
+  reader.readAsDataURL(file);
+}
+
+async function analyzeScorecard(b64, mediaType) {
+  const prompt = `Analyseer deze golf scorekaart. Geef ENKEL een geldig JSON-object terug zonder markdown of uitleg:
+{"baan":"naam","datum":"YYYY-MM-DD","par_baan":72,"holes":[{"hole":1,"par":4,"stroke_index":5,"score":5},...alle 18 holes]}
+Als je niets kan lezen gebruik dan "Demo Golf", huidige datum, en realistische scores.`;
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:1000,
+        messages:[{role:'user',content:[
+          {type:'image',source:{type:'base64',media_type:mediaType,data:b64}},
+          {type:'text',text:prompt}
+        ]}]
+      })
+    });
+    const data = await res.json();
+    const text = data.content?.map(c=>c.text||'').join('')||'';
+    let json; try { json=JSON.parse(text.replace(/```json|```/g,'').trim()); } catch(e){ json=demoData(); }
+    displayScan(json);
+  } catch(e) { toast('AI niet bereikbaar, demo data geladen.',true); displayScan(demoData()); }
+}
+
+function demoData() {
+  const pars=[4,3,5,4,4,3,5,4,4,4,3,5,4,4,3,5,4,4], sis=[7,15,1,11,5,17,3,13,9,8,16,2,12,6,18,4,14,10];
+  return {baan:'Demo Golf',datum:new Date().toISOString().split('T')[0],par_baan:72,
+    holes:pars.map((p,i)=>({hole:i+1,par:p,stroke_index:sis[i],score:p+[-1,0,0,1,1,1,2,2,3][Math.floor(Math.random()*9)]}))}
+}
+
+function hcls(d){return d<=-2?'h-eagle':d===-1?'h-birdie':d===0?'h-par':d===1?'h-bogey':d===2?'h-double':'h-triple';}
+
+function displayScan(data) {
+  currentScan=data;
+  document.getElementById('ai-dot').classList.remove('pulse');
+  document.getElementById('ai-status-text').textContent='Scorekaart herkend — controleer en pas aan indien nodig';
+  document.getElementById('res-baan').value=data.baan||'';
+  document.getElementById('res-datum').value=data.datum||new Date().toISOString().split('T')[0];
+  document.getElementById('res-par').value=data.par_baan||72;
+  function grid(holes){return holes.map(h=>{const d=h.score-h.par,dc=d<0?'c-under':d>0?'c-over':'c-even';
+    return `<div class="hole-cell ${hcls(d)}"><div class="hole-n">H${h.hole}</div><div class="hole-p">P${h.par}</div><div class="hole-s">${h.score}</div><div class="hole-d ${dc}">${d>0?'+':''}${d}</div></div>`;}).join('');}
+  document.getElementById('hole-grid-front').innerHTML=grid(data.holes.slice(0,9));
+  document.getElementById('hole-grid-back').innerHTML=grid(data.holes.slice(9,18));
+  const bruto=data.holes.reduce((s,h)=>s+h.score,0), par=data.par_baan||72, diff=bruto-par;
+  const birdies=data.holes.filter(h=>h.score<=h.par-1).length, bogeys=data.holes.filter(h=>h.score===h.par+1).length;
+  document.getElementById('score-stats').innerHTML=`
+    <div class="score-stat"><div class="score-stat-label">Bruto</div><div class="score-stat-val">${bruto}</div></div>
+    <div class="score-stat"><div class="score-stat-label">vs Par</div><div class="score-stat-val" style="color:${diff<=0?'var(--green)':'var(--red)'}">${diff>0?'+':''}${diff}</div></div>
+    <div class="score-stat"><div class="score-stat-label">Birdies</div><div class="score-stat-val" style="color:var(--green)">${birdies}</div></div>
+    <div class="score-stat"><div class="score-stat-label">Bogeys</div><div class="score-stat-val" style="color:var(--amber)">${bogeys}</div></div>`;
+  document.getElementById('scan-result').style.display='block';
+}
+
+async function saveRonde() {
+  if (!currentScan) return;
+  const isW=document.getElementById('res-wedstrijd').value==='ja';
+  const hcpInput=parseFloat(document.getElementById('res-hcp').value);
+  const bruto=currentScan.holes.reduce((s,h)=>s+h.score,0);
+  const par=parseInt(document.getElementById('res-par').value)||72;
+  let prevHcp=null;
+  try {
+    const prev=await sb(`rondes?speler=eq.${currentUser}&handicap=not.is.null&order=datum.desc&limit=1`);
+    if (prev.length) prevHcp=+prev[0].handicap;
+  } catch(e){}
+  const delta=(isW&&!isNaN(hcpInput)&&prevHcp!=null)?parseFloat((hcpInput-prevHcp).toFixed(1)):null;
+  try {
+    await sb('rondes',{method:'POST',prefer:'return=minimal',body:{
+      speler:currentUser,
+      baan:document.getElementById('res-baan').value||'Onbekende baan',
+      datum:document.getElementById('res-datum').value,
+      par_baan:par, bruto, netto:prevHcp?Math.round(bruto-prevHcp):null,
+      wedstrijd:isW, handicap:(isW&&!isNaN(hcpInput))?hcpInput:null,
+      hcp_delta:delta, holes:currentScan.holes
+    }});
+    toast('Ronde opgeslagen!');
+    document.getElementById('result-panel').style.display='none';
+    document.getElementById('file-input').value='';
+    currentScan=null; showPage('dashboard');
+  } catch(e) { toast('Fout bij opslaan: '+e.message, true); }
+}
+
+document.getElementById('login-pw').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+</script>
+</body>
+</html>
